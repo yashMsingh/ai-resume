@@ -2,9 +2,11 @@ from flask import Flask, render_template, request, jsonify, send_file
 import os
 import uuid
 from datetime import datetime
-from ai_resume_generator import ResumeGenerator  # Fixed import name
-from linkedin_scraper import LinkedInScraper
-from pdf_generator import  PDFResumeGenerator
+from ai_resume_generator import ResumeGenerator
+from linkedin_scraper_mock import MockLinkedInScraper as LinkedInScraper
+# To use actual Selenium scraper (may have compatibility issues), uncomment:
+# from linkedin_scraper import LinkedInScraper
+from pdf_generator import PDFResumeGenerator
 
 app = Flask(__name__)
 

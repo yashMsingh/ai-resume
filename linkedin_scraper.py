@@ -24,12 +24,18 @@ class LinkedInScraper:
         chrome_options.add_experimental_option('useAutomationExtension', False)
         chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         
-        # Uncomment the next line to run in headless mode (no browser window)
-        # chrome_options.add_argument("--headless")
+        # Run in headless mode (no browser window) to avoid compatibility issues
+        chrome_options.add_argument("--headless=new")
+        chrome_options.add_argument("--disable-gpu")
         
-        service = Service(ChromeDriverManager().install())
-        self.driver = webdriver.Chrome(service=service, options=chrome_options)
-        self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        try:
+            service = Service(ChromeDriverManager().install())
+            self.driver = webdriver.Chrome(service=service, options=chrome_options)
+            self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        except Exception as e:
+            print(f"Error setting up Chrome driver: {e}")
+            print("Note: ChromeDriver might need to be installed separately or compatibility mode checked.")
+            raise
     
     def scrape_profile(self, linkedin_url):
         """Scrape LinkedIn profile and return structured data"""

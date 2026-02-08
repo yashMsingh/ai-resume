@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkedIn Resume Maker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #0077b5;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="url"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        input[type="url"]:focus {
+            border-color: #0077b5;
+            outline: none;
+        }
+        button {
+            background-color: #0077b5;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #005885;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .instructions {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .progress-container {
+            margin: 20px 0;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0077b5, #00a0dc);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        small {
+            color: #666;
+            font-size: 12px;
+        }
+        .download-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-primary {
+            background-color: #0077b5;
+            color: white;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        .btn:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 LinkedIn to Resume Generator</h1>
+        
+        <div class="instructions">
+            <h3>📋 Instructions:</h3>
+            <ul>
+                <li>Enter a public LinkedIn profile URL</li>
+                <li>Our AI will analyze the profile and generate a professional resume</li>
+                <li>Example: https://www.linkedin.com/in/username</li>
+            </ul>
+        </div>
+
+        <form id="resumeForm">
+            <div class="form-group">
+                <label for="linkedin_url">LinkedIn Profile URL:</label>
+                <input 
+                    type="url" 
+                    id="linkedin_url" 
+                    name="linkedin_url" 
+                    placeholder="https://www.linkedin.com/in/your-profile"
+                    required
+                >
+            </div>
+            
+            <div class="form-group">
+                <label for="job_title">Target Job Title (Optional):</label>
+                <input 
+                    type="text" 
+                    id="job_title" 
+                    name="job_title" 
+                    placeholder="e.g., Software Engineer, Marketing Manager"
+                >
+                <small>Leave blank for general resume or specify to optimize for a specific role</small>
+            </div>
+            
+            <button type="submit" id="generateBtn">
+                🚀 Generate Resume
+            </button>
+            
+            <div class="loading" id="loading">
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <p id="progressText">⏳ Starting resume generation...</p>
+                </div>
+            </div>
+        </form>
+
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        let currentProcessId = null;
+        let statusCheckInterval = null;
+
+        document.getElementById('resumeForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const button = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            
+            // Show loading state
+            button.disabled = true;
+            button.textContent = 'Processing...';
+            loading.style.display = 'block';
+            result.style.display = 'none';
+            
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    currentProcessId = data.process_id;
+                    startStatusChecking();
+                } else {
+                    showError(data.error || 'Failed to start resume generation');
+                }
+            } catch (error) {
+                showError('Something went wrong. Please try again.');
+            }
+        });
+
+        function startStatusChecking() {
+            statusCheckInterval = setInterval(checkStatus, 2000); // Check every 2 seconds
+        }
+
+        async function checkStatus() {
+            if (!currentProcessId) return;
+
+            try {
+                const response = await fetch(`/status/${currentProcessId}`);
+                const data = await response.json();
+
+                updateProgress(data);
+
+                if (data.status === 'completed') {
+                    clearInterval(statusCheckInterval);
+                    showSuccess(data);
+                } else if (data.status === 'error') {
+                    clearInterval(statusCheckInterval);
+                    showError(data.error);
+                }
+            } catch (error) {
+                console.error('Status check failed:', error);
+            }
+        }
+
+        function updateProgress(data) {
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            
+            const progress = data.progress || 0;
+            progressFill.style.width = progress + '%';
+            
+            let message = '⏳ Processing...';
+            switch (data.status) {
+                case 'starting':
+                    message = '🚀 Starting resume generation...';
+                    break;
+                case 'scraping':
+                    message = '🔍 Analyzing LinkedIn profile...';
+                    break;
+                case 'generating':
+                    message = '🤖 AI is crafting your resume...';
+                    break;
+                case 'creating_pdf':
+                    message = '📄 Creating PDF document...';
+                    break;
+                case 'completed':
+                    message = '✅ Resume generated successfully!';
+                    break;
+            }
+            
+            progressText.textContent = message;
+        }
+
+        function showSuccess(data) {
+            const button = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            
+            result.className = 'result success';
+            result.innerHTML = `
+                <h3>✅ Resume Generated Successfully!</h3>
+                <p>Your professional resume has been created from your LinkedIn profile.</p>
+                <div class="download-section">
+                    <a href="/download/${currentProcessId}" class="btn btn-primary" download>
+                        📥 Download PDF Resume
+                    </a>
+                    <button onclick="previewResume()" class="btn btn-secondary">
+                        👁️ Preview Resume
+                    </button>
+                </div>
+            `;
+            
+            // Reset form
+            button.disabled = false;
+            button.textContent = '🚀 Generate Resume';
+            loading.style.display = 'none';
+            result.style.display = 'block';
+        }
+
+        function showError(errorMessage) {
+            const button = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            
+            result.className = 'result error';
+            result.innerHTML = `
+                <h3>❌ Error</h3>
+                <p>${errorMessage}</p>
+                <p><strong>Troubleshooting tips:</strong></p>
+                <ul style="text-align: left;">
+                    <li>Make sure the LinkedIn profile is public</li>
+                    <li>Check if the URL is correct (should contain linkedin.com/in/)</li>
+                    <li>Try again in a few minutes</li>
+                </ul>
+            `;
+            
+            // Reset form
+            button.disabled = false;
+            button.textContent = '🚀 Generate Resume';
+            loading.style.display = 'none';
+            result.style.display = 'block';
+        }
+
+        async function previewResume() {
+            if (!currentProcessId) return;
+            
+            try {
+                const response = await fetch(`/preview/${currentProcessId}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Create preview modal
+                    const modal = document.createElement('div');
+                    modal.style.cssText = `
+                        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                        background: rgba(0,0,0,0.5); z-index: 1000; display: flex;
+                        align-items: center; justify-content: center; padding: 20px;
+                    `;
+                    
+                    const content = document.createElement('div');
+                    content.style.cssText = `
+                        background: white; border-radius: 10px; padding: 20px;
+                        max-width: 800px; max-height: 80%; overflow-y: auto;
+                        position: relative;
+                    `;
+                    
+                    content.innerHTML = `
+                        <button onclick="this.parentElement.parentElement.remove()" 
+                                style="position: absolute; top: 10px; right: 15px; 
+                                       background: none; border: none; font-size: 24px; cursor: pointer;">×</button>
+                        <h2>Resume Preview</h2>
+                        <pre style="white-space: pre-wrap; font-family: Arial, sans-serif; line-height: 1.4;">${data.resume_text}</pre>
+                    `;
+                    
+                    modal.appendChild(content);
+                    document.body.appendChild(modal);
+                } else {
+                    alert('Failed to load preview');
+                }
+            } catch (error) {
+                alert('Preview failed');
+            }
+        }
+    </script>
+</body>
+</html>
